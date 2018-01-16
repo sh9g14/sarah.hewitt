@@ -44,7 +44,7 @@
 {"startDate":"2016,01,06",
 "endDate":"",
 "headline":"Chartered College Of Teaching",
-"text":"A recognised,voluntary professional body for the teaching profession.",
+"text":"A recognised, voluntary professional body for the teaching profession.",
 "tag":"Announcements",
 "asset":{}},
 
@@ -130,10 +130,10 @@
 "asset":{}},
 
 {"startDate":"1988",
-"endDate":"1996",
+"endDate":"",
 "headline":"Education Reform Act",
 "text":"1988 Education Reform Act 1988 (pdf 45.9mb): major act establishing the National Curriculum, testing regime, Local Management of Schools (LMS) etc.",
-"tag":"Acts and Policies",
+"tag":"People",
 "asset":{}},
 
 {"startDate":"1988",
@@ -174,7 +174,7 @@
 {"startDate":"1990",
 "endDate":"1997",
 "headline":"1990-1997 John Major (Conservative)",
-"text":"1990-1997 John Major: more of the same.",
+"text":"1990-1997 John Major: took over from Thatcher.",
 "tag":"People",
 "asset":{}},
 
@@ -287,13 +287,6 @@
 "endDate":"",
 "headline":"Education (Student Loans) Act",
 "text":"1996 Education (Student Loans) Act 1996 (pdf 56kb): extended the provision of student loans.",
-"tag":"Acts and Policies",
-"asset":{}},
-
-{"startDate":"1996",
-"endDate":"",
-"headline":"Education (Scotland) Act",
-"text":"1996 Education (Scotland) Act 1996 (pdf 901kb) established the Scottish Qualifications Authority, enabled grants for nursery providers etc.",
 "tag":"Acts and Policies",
 "asset":{}},
 
