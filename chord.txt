@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+	<title>Stretched Chord to show Flows</title>
+
+	<!-- D3.js -->	
+    <script src="http://d3js.org/d3.v3.js"></script>
+	<script src="d3.stretched.chord.js"></script>
+	<script src="d3.layout.chord.sort.js"></script>
+	
+	<!-- jQuery -->
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	
+	<!-- Open Sans & CSS -->
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans:700,400,300' rel='stylesheet' type='text/css'>
+	  <style>
+		body {
+		  font-family: 'Open Sans', sans-serif;
+		  font-size: 12px;
+		  font-weight: 400;
+		  color: #525252;
+		  text-align: center;
+		}	
+		
+		line {
+		  stroke: #000;
+		  stroke-width: 1.px;
+		}
+
+		text {
+		  font-size: 8px;
+		}
+
+		.titles{
+		  font-size: 10px;
+		}
+
+		path.chord {
+		  fill-opacity: .80;
+		}
+	  </style>
+  </head>
+  <body>
+
+    <div id="chart"></div>	
+    <script src="script.js"></script>
+	
+  </body>
+</html>
+d3.layout.chord.sort.js#
+customChordLayout = function() {
+	var ε = 1e-6, ε2 = ε * ε, π = Math.PI, τ = 2 * π, τε = τ - ε, halfπ = π / 2, d3_radians = π / 180, d3_degrees = 180 / π;
+    var chord = {}, chords, groups, matrix, n, padding = 0, sortGroups, sortSubgroups, sortChords;
+    function relayout() {
+      var subgroups = {}, groupSums = [], groupIndex = d3.range(n), subgroupIndex = [], k, x, x0, i, j;
+      chords = [];
+      groups = [];
+      k = 0, i = -1;
+      while (++i < n) {
+        x = 0, j = -1;
+        while (++j < n) {
+          x += matrix[i][j];
+        }
+        groupSums.push(x);
+        subgroupIndex.push(d3.range(n).reverse());
+        k += x;
+      }
+      if (sortGroups) {
+        groupIndex.sort(function(a, b) {
+          return sortGroups(groupSums[a], groupSums[b]);
+        });
+      }
+      if (sortSubgroups) {
+        subgroupIndex.forEach(function(d, i) {
+          d.sort(function(a, b) {
+            return sortSubgroups(matrix[i][a], matrix[i][b]);
+          });
+        });
+      }
+      k = (τ - padding * n) / k;
+      x = 0, i = -1;
+      while (++i < n) {
+        x0 = x, j = -1;
+        while (++j < n) {
+          var di = groupIndex[i], dj = subgroupIndex[di][j], v = matrix[di][dj], a0 = x, a1 = x += v * k;
+          subgroups[di + "-" + dj] = {
+            index: di,
+            subindex: dj,
+            startAngle: a0,
+            endAngle: a1,
+            value: v
+          };
+        }
+        groups[di] = {
+          index: di,
+          startAngle: x0,
+          endAngle: x,
+          value: (x - x0) / k
+        };
+        x += padding;
+      }
+      i = -1;
+      while (++i < n) {
+        j = i - 1;
+        while (++j < n) {
+          var source = subgroups[i + "-" + j], target = subgroups[j + "-" + i];
+          if (source.value || target.value) {
+            chords.push(source.value < target.value ? {
+              source: target,
+              target: source
+            } : {
+              source: source,
+              target: target
+            });
+          }
+        }
+      }
+      if (sortChords) resort();
+    }
+    function resort() {
+      chords.sort(function(a, b) {
+        return sortChords((a.source.value + a.target.value) / 2, (b.source.value + b.target.value) / 2);
+      });
+    }
+    chord.matrix = function(x) {
+      if (!arguments.length) return matrix;
+      n = (matrix = x) && matrix.length;
+      chords = groups = null;
+      return chord;
+    };
+    chord.padding = function(x) {
+      if (!arguments.length) return padding;
+      padding = x;
+      chords = groups = null;
+      return chord;
+    };
+    chord.sortGroups = function(x) {
+      if (!arguments.length) return sortGroups;
+      sortGroups = x;
+      chords = groups = null;
+      return chord;
+    };
+    chord.sortSubgroups = function(x) {
+      if (!arguments.length) return sortSubgroups;
+      sortSubgroups = x;
+      chords = null;
+      return chord;
+    };
+    chord.sortChords = function(x) {
+      if (!arguments.length) return sortChords;
+      sortChords = x;
+      if (chords) resort();
+      return chord;
+    };
+    chord.chords = function() {
+      if (!chords) relayout();
+      return chords;
+    };
+    chord.groups = function() {
+      if (!groups) relayout();
+      return groups;
+    };
+    return chord;
+  };
+d3.stretched.chord.js#
+////////////////////////////////////////////////////////////
+/////////////// Custom Chord Function //////////////////////
+//////// Pulls the chords pullOutSize pixels apart /////////
+////////////////// along the x axis ////////////////////////
+////////////////////////////////////////////////////////////
+///////////// Created by Nadieh Bremer /////////////////////
+//////////////// VisualCinnamon.com ////////////////////////
+////////////////////////////////////////////////////////////
+//// Adjusted from the original d3.svg.chord() function ////
+///////////////// from the d3.js library ///////////////////
+//////////////// Created by Mike Bostock ///////////////////
+////////////////////////////////////////////////////////////
+
+stretchedChord = function() {
+    var source = d3_source, 
+    target = d3_target, 
+    radius = d3_svg_chordRadius, 
+    startAngle = d3_svg_arcStartAngle, 
+    endAngle = d3_svg_arcEndAngle,
+    pullOutSize = 0;
+    
+  var π = Math.PI,
+    halfπ = π / 2;
+
+    function subgroup(self, f, d, i) {
+    var subgroup = f.call(self, d, i), 
+      r = radius.call(self, subgroup, i), 
+      a0 = startAngle.call(self, subgroup, i) - halfπ, 
+      a1 = endAngle.call(self, subgroup, i) - halfπ;
+      return {
+        r: r,
+        a0: [a0],
+        a1: [a1],
+        p0: [ r * Math.cos(a0), r * Math.sin(a0)],
+        p1: [ r * Math.cos(a1), r * Math.sin(a1)]
+      };
+    }
+
+    function arc(r, p, a) {
+    var sign = (p[0] >= 0 ? 1 : -1);
+    return "A" + r + "," + r + " 0 " + +(a > π) + ",1 " + (p[0] + sign*pullOutSize) + "," + p[1];
+    }
+
+
+    function curve(p1) {
+    var sign = (p1[0] >= 0 ? 1 : -1);
+    return "Q 0,0 " + (p1[0] + sign*pullOutSize) + "," + p1[1];
+    }
+  
+  /*
+  M = moveto
+  M x,y
+  Q = quadratic Bézier curve
+  Q control-point-x,control-point-y end-point-x, end-point-y
+  A = elliptical Arc
+  A rx, ry x-axis-rotation large-arc-flag, sweep-flag  end-point-x, end-point-y
+  Z = closepath
+
+  M251.5579641956022,87.98204731514328
+  A266.5,266.5 0 0,1 244.49937503334525,106.02973926358392
+  Q 0,0 -177.8355222451483,198.48621369706098
+  A266.5,266.5 0 0,1 -191.78901944612068,185.0384338992728
+  Q 0,0 251.5579641956022,87.98204731514328
+  Z
+  */  
+    function chord(d, i) {
+    var s = subgroup(this, source, d, i), 
+      t = subgroup(this, target, d, i);
+          
+  return "M" + (s.p0[0] + pullOutSize) + "," + s.p0[1] + 
+      arc(s.r, s.p1, s.a1 - s.a0) + 
+      curve(t.p0) + 
+      arc(t.r, t.p1, t.a1 - t.a0) + 
+      curve(s.p0) + 
+      "Z";
+   }//chord
+
+    chord.radius = function(v) {
+      if (!arguments.length) return radius;
+      radius = d3_functor(v);
+      return chord;
+    };
+    chord.pullOutSize = function(v) {
+      if (!arguments.length) return pullOutSize;
+      pullOutSize = v;
+      return chord;
+    };
+    chord.source = function(v) {
+      if (!arguments.length) return source;
+      source = d3_functor(v);
+      return chord;
+    };
+    chord.target = function(v) {
+      if (!arguments.length) return target;
+      target = d3_functor(v);
+      return chord;
+    };
+    chord.startAngle = function(v) {
+      if (!arguments.length) return startAngle;
+      startAngle = d3_functor(v);
+      return chord;
+    };
+    chord.endAngle = function(v) {
+      if (!arguments.length) return endAngle;
+      endAngle = d3_functor(v);
+      return chord;
+    };
+
+
+  function d3_svg_chordRadius(d) {
+      return d.radius;
+  }
+
+  function d3_source(d) {
+    return d.source;
+  }
+    
+  function d3_target(d) {
+      return d.target;
+  }
+
+  function d3_svg_arcStartAngle(d) {
+      return d.startAngle;
+  }
+    
+  function d3_svg_arcEndAngle(d) {
+      return d.endAngle;
+  }
+
+  function d3_functor(v) {
+    return typeof v === "function" ? v : function() {
+      return v;
+    };
+  }
+
+  return chord;
+
+}//stretchedChord
+script.js#
+////////////////////////////////////////////////////////////
+//////////////////////// Set-up ////////////////////////////
+////////////////////////////////////////////////////////////
+var screenWidth = $(window).width(),
+	mobileScreen = (screenWidth > 400 ? false : true);
+
+var margin = {left: 50, top: 10, right: 50, bottom: 10},
+	width = Math.min(screenWidth, 800) - margin.left - margin.right,
+	height = (mobileScreen ? 300 : Math.min(screenWidth, 800)*5/6) - margin.top - margin.bottom;
+			
+var svg = d3.select("#chart").append("svg")
+			.attr("width", (width + margin.left + margin.right))
+			.attr("height", (height + margin.top + margin.bottom));
+			
+var wrapper = svg.append("g").attr("class", "chordWrapper")
+			.attr("transform", "translate(" + (width / 2 + margin.left) + "," + (height / 2 + margin.top) + ")");;
+			
+var outerRadius = Math.min(width, height) / 2  - (mobileScreen ? 80 : 100),
+	innerRadius = outerRadius * 0.95,
+	pullOutSize = (mobileScreen? 20 : 50),
+	opacityDefault = 0.7, //default opacity of chords
+	opacityLow = 0.02; //hover opacity of those chords not hovered over
+	
+////////////////////////////////////////////////////////////
+////////////////////////// Data ////////////////////////////
+////////////////////////////////////////////////////////////
+
+var Names = ["Other","Soapboxing","Resources","ReflectivePractice","ProfessionalConcern","Positioning","CPD/Training/Advice"","2017","2016","2015","2014","2013","2012","2011","2010","2009","2008","2007","2006","2005","2004" ""];
+
+var respondents = 41097, //Total number of respondents (i.e. the number that makes up the total group)
+	emptyPerc = 0.4, //What % of the circle should become empty
+	emptyStroke = Math.round(respondents*emptyPerc); 
+var matrix = [
+	[0,0,0,0,0,0,0,16,17,40,31,22,19,13,19,14,3,1,2,0,0], //Other
+	[0,0,0,0,0,0,0,370,639,1059,1016,736,363,304,215,124,104,62,41,12,15], //Soapboxing
+	[0,0,0,0,0,0,0,405,576,999,902,714,566,570,509,259,216,79,23,13,18], //Resources
+	[0,0,0,0,0,0,0,411,743,1431,1285,933,501,416,263,156,138,69,18,14,12], //ReflectivePractice
+	[0,0,0,0,0,0,0,110,163,280,260,200,141,77,37,35,17,15,6,4,4], //ProfessionalConcern
+	[0,0,0,0,0,0,0,630,1145,1883,1762,1164,759,581,537,279,135,94,41,38,22], //Positioning
+	[0,0,0,0,0,0,0,1037,1524,2759,2581,1846,1160,803,627,353,245,127,60,29,31], //CPD/Training/Advice
+	[0,0,0,0,0,0,0,0,0,0,0,0,0,0,emptyStroke], //Dummy stroke
+	[16,370,405,411,110,630,1037,0,0,0,0,0,0,0], //2017
+	[17, 639,526,743,163,1145,1524,0,0,0,0,0,0,0], //2016
+	[40,1059,999,1431,280,1883,2759,0,0,0,0,0,0,0], //2015
+	[31,1016,902,1285,260,1762,2581,0,0,0,0,0,0,0], //2014
+	[22,746,714,933,200,1164,1846,0,0,0,0,0,0,0], //2013
+	[19,363,566,501,141,759,1160,0,0,0,0,0,0,0], //2012
+	[13,304,570,416,77,581,803,0,0,0,0,0,0,0], //2011
+	[19,215,509,263,37,537,627,0,0,0,0,0,0,0], //2010
+	[14,124,259,256,35,279,353,0,0,0,0,0,0,0], //2009
+	[3,104,216,138,17,135,245,0,0,0,0,0,0,0], //2008
+	[1,62,79,69,15,95,127,0,0,0,0,0,0,0], //2007
+	[2,41,23,18,6,41,60,0,0,0,0,0,0,0], //2006
+	[0,12,13,14,4,38,29,0,0,0,0,0,0,0], //2005
+	[0,15,18,12,4,22,31,0,0,0,0,0,0,0], //2004
+	[0,0,0,0,0,0,emptyStroke,0,0,0,0,0,0,0] //Dummy stroke
+];
+//Calculate how far the Chord Diagram needs to be rotated clockwise to make the dummy
+//invisible chord center vertically
+var offset = (2 * Math.PI) * (emptyStroke/(respondents + emptyStroke))/4;
+
+//Custom sort function of the chords to keep them in the original order
+function customSort(a,b) {
+	return 1;
+};
+
+//Custom sort function of the chords to keep them in the original order
+var chord = customChordLayout() //d3.layout.chord()//Custom sort function of the chords to keep them in the original order
+	.padding(.02)
+	.sortChords(d3.descending) //which chord should be shown on top when chords cross. Now the biggest chord is at the bottom
+	.matrix(matrix);
+	
+var arc = d3.svg.arc()
+	.innerRadius(innerRadius)
+	.outerRadius(outerRadius)
+	.startAngle(startAngle) //startAngle and endAngle now include the offset in degrees
+	.endAngle(endAngle);
+
+var path = stretchedChord()
+	.radius(innerRadius)
+	.startAngle(startAngle)
+	.endAngle(endAngle)
+	.pullOutSize(pullOutSize);
+
+////////////////////////////////////////////////////////////
+//////////////////// Draw outer Arcs ///////////////////////
+////////////////////////////////////////////////////////////
+
+var g = wrapper.selectAll("g.group")
+	.data(chord.groups)
+	.enter().append("g")
+	.attr("class", "group")
+	.on("mouseover", fade(opacityLow))
+	.on("mouseout", fade(opacityDefault));
+
+g.append("path")
+	.style("stroke", function(d,i) { return (Names[i] === "" ? "none" : "#00A1DE"); })
+	.style("fill", function(d,i) { return (Names[i] === "" ? "none" : "#00A1DE"); })
+	.style("pointer-events", function(d,i) { return (Names[i] === "" ? "none" : "auto"); })
+	.attr("d", arc)
+	.attr("transform", function(d, i) { //Pull the two slices apart
+				d.pullOutSize = pullOutSize * ( d.startAngle + 0.001 > Math.PI ? -1 : 1);
+				return "translate(" + d.pullOutSize + ',' + 0 + ")";
+	});
+
+
+////////////////////////////////////////////////////////////
+////////////////////// Append Names ////////////////////////
+////////////////////////////////////////////////////////////
+
+//The text also needs to be displaced in the horizontal directions
+//And also rotated with the offset in the clockwise direction
+g.append("text")
+	.each(function(d) { d.angle = ((d.startAngle + d.endAngle) / 2) + offset;})
+	.attr("dy", ".35em")
+	.attr("class", "titles")
+	.attr("text-anchor", function(d) { return d.angle > Math.PI ? "end" : null; })
+	.attr("transform", function(d,i) { 
+		var c = arc.centroid(d);
+		return "translate(" + (c[0] + d.pullOutSize) + "," + c[1] + ")"
+		+ "rotate(" + (d.angle * 180 / Math.PI - 90) + ")"
+		+ "translate(" + 55 + ",0)"
+		+ (d.angle > Math.PI ? "rotate(180)" : "")
+	})
+  .text(function(d,i) { return Names[i]; });
+
+////////////////////////////////////////////////////////////
+//////////////////// Draw inner chords /////////////////////
+////////////////////////////////////////////////////////////
+ 
+var chords = wrapper.selectAll("path.chord")
+	.data(chord.chords)
+	.enter().append("path")
+	.attr("class", "chord")
+	.style("stroke", "none")
+	.style("fill", "#C4C4C4")
+	.style("opacity", function(d) { return (Names[d.source.index] === "" ? 0 : opacityDefault); }) //Make the dummy strokes have a zero opacity (invisible)
+	.style("pointer-events", function(d,i) { return (Names[d.source.index] === "" ? "none" : "auto"); }) //Remove pointer events from dummy strokes
+	.attr("d", path);	
+
+////////////////////////////////////////////////////////////
+///////////////////////// Tooltip //////////////////////////
+////////////////////////////////////////////////////////////
+
+//Arcs
+g.append("title")	
+	.text(function(d, i) {return Math.round(d.value) + " people in " + Names[i];});
+	
+//Chords
+chords.append("title")
+	.text(function(d) {
+		return [Math.round(d.source.value), " people from ", Names[d.target.index], " to ", Names[d.source.index]].join(""); 
+	});
+	
+////////////////////////////////////////////////////////////
+////////////////// Extra Functions /////////////////////////
+////////////////////////////////////////////////////////////
+
+//Include the offset in de start and end angle to rotate the Chord diagram clockwise
+function startAngle(d) { return d.startAngle + offset; }
+function endAngle(d) { return d.endAngle + offset; }
+
+// Returns an event handler for fading a given chord group
+function fade(opacity) {
+  return function(d, i) {
+	svg.selectAll("path.chord")
+		.filter(function(d) { return d.source.index !== i && d.target.index !== i && Names[d.source.index] !== ""; })
+		.transition("fadeOnArc")
+		.style("opacity", opacity);
+  };
+}//fade
